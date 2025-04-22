@@ -7,7 +7,7 @@ const options = {
   swaggerDefinition: {
     openapi: "3.0.0",
     info: {
-      title: `Xavia token launchpad bakend API`,
+      title: "Xavia token launchpad bakend API",
       version: "1.0.0",
       description: `API documentation for Xavia token launchpad bakend endpoints`,
     },

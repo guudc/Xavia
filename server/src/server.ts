@@ -1,6 +1,8 @@
 
 import express, { Application, Request, Response } from "express";
 import dotenv from "dotenv";
+// Load environment variables from .env
+dotenv.config();
 import cors from "cors";
 import morgan from "morgan";
 import bodyParser from "body-parser";
@@ -8,11 +10,9 @@ import mainRoute from "./routes/route";
 import swaggerUi from "swagger-ui-express";
 import swaggerSpec from "./utils/swagger";
 import connectDB from "./models/db";  
-import apiMiddleware from "./middlewares/api";
-import { getBlockAndTx } from "./tools/chain";
+import apiMiddleware from "./middlewares/api"; 
 import { scrapeWebsite } from "./tools/web";
-// Load environment variables from .env
-dotenv.config();
+
 
 // Initialize Express app
 const app: Application = express();
@@ -29,7 +29,7 @@ app.use(apiMiddleware)
 app.use("/api", mainRoute);
 
 app.use(
-  "/api/docs",
+  "/api-docs",
   swaggerUi.serve,
   swaggerUi.setup(swaggerSpec, {
     explorer: true,
@@ -62,5 +62,5 @@ app.get("/api", (req: Request, res: Response) => {
 const PORT = process.env.PORT || 8000;
 app.listen(PORT, async () => {
   console.log(`🚀 Server is running on http://localhost:${PORT}`);
-  console.log(await scrapeWebsite('https://google.com'))
+  //console.log(JSON.stringify(await scrapeWebsite('https://google.com')).length)
 });

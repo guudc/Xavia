@@ -3,6 +3,6 @@
  */
 import { GoogleGenAI } from "@google/genai";
 
-const ai = new GoogleGenAI({ apiKey: "GEMINI_API_KEY" });
+const ai = new GoogleGenAI({ apiKey: process.env.AI_KEY });
 
-module.exports = ai
+export default ai
