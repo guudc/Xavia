@@ -1,3 +1,4 @@
+
 import swaggerJsdoc from "swagger-jsdoc";
 import dotenv from "dotenv";
 dotenv.config();
@@ -12,7 +13,8 @@ const options = {
     },
     servers: [
       {
-        url: `${process.env.BASE_URL}`,
+        url: 
+        `${process.env.BASE_URL}`,
       },
     ],
     components: {
@@ -22,11 +24,16 @@ const options = {
           in: "header",
           name: "x-api-key",
         },
+        bearerAuth: {
+          type: "http",
+          scheme: "bearer",
+          bearerFormat: "JWT",
+        },
       },
     },
-    security: [{ apiKey: [] }],
+    security: [{ apiKey: [] }, { bearerAuth: [] }],
   },
-  apis: ["**/*.ts", "./dist/routes/*.js"],
+  apis: ["./src/routes/*.ts", "./dist/routes/*.js"],
 };
 
 const swaggerSpec = swaggerJsdoc(options);
