@@ -1,7 +1,4 @@
 import { URL } from "url";
-import fs from "fs/promises";
-import path from "path";
-import crypto from "crypto";
 import * as cheerio from "cheerio";
 
 // Cache to store scraped site data in memory
@@ -36,7 +33,7 @@ interface SemanticInfo {
 }
 
 // Interface for the structure of the scraped data
-interface ScrapedData {
+export interface ScrapedData {
   link: string;
   title: string;
   contents: string;
