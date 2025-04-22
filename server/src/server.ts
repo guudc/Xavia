@@ -1,3 +1,4 @@
+
 import express, { Application, Request, Response } from "express";
 import dotenv from "dotenv";
 import cors from "cors";
@@ -27,25 +28,30 @@ app.use(apiMiddleware)
 // Use main route
 app.use("/api", mainRoute);
 
-// app.use(
-//   "/api-docs",
-//   swaggerUi.serve,
-//   swaggerUi.setup(swaggerSpec, {
-//     explorer: true, // Adds an "Explore" button to Swagger UI
-//     swaggerOptions: {
-//       docExpansion: "none", // Optionally set to 'none' to minimize loading
-//       persistAuthorization: true, // Remember authorization details for future requests
-//       authAction: {
-//         // API Key Authorization
-//         AuthorizeApiKey: {
-//           type: "apiKey",
-//           name: "x-api-key", // Name of the header that contains the API key
-//           in: "header", // The header where the API key will be passed
-//         },
-//       },
-//     },
-//   })
-// );
+app.use(
+  "/api/docs",
+  swaggerUi.serve,
+  swaggerUi.setup(swaggerSpec, {
+    explorer: true,
+    swaggerOptions: {
+      docExpansion: "none",
+      persistAuthorization: true,
+      authAction: {
+        AuthorizeApiKey: {
+          type: "apiKey",
+          name: "x-api-key",
+          in: "header",
+        },
+        AuthorizeJWT: {
+          type: "http",
+          scheme: "bearer",
+          bearerFormat: "JWT",
+        },
+      },
+    },
+  })
+);
+
 
 // Default route
 app.get("/api", (req: Request, res: Response) => {
