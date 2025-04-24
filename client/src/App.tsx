@@ -4,40 +4,54 @@ import { Button } from "./components/ui/button";
 import { Search, Mic, Waves, Menu, X } from "lucide-react";
 import { CreateXavia, TalkToXavia, GetChatHistory } from "./function";
 import Alert from "./components/ui/alert";
+import SideBar from "./components/SideBar";
 
 const ChatApp: React.FC = () => {
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [websiteInput, setWebsiteInput] = useState("");
   const [savedWebsites, setSavedWebsites] = useState<string[]>([]);
-  const [activeWebsite, setActiveWebsite] = useState("");
+  const [activeWebsite, setActiveWebsite] = useState<any>({});
   const [input, setInput] = useState("");
   const [messages, setMessages] = useState<any[]>([]);
   const [msg, setMsg] = useState<string>("");
   const [alertType, setAlertType] = useState<string>("");
   const [loading, setLoading] = useState(false);
-  const [chatId, setChatId] = useState<string | null>(null); // Store chat ID
+  const [processing, setProcessing] = useState(false);
+  const [chatId, setChatId] = useState<string | null>(null);
+  const [processingIndex, setProcessingIndex] = useState<number | null>(null);
 
   const toggleSidebar = () => setSidebarOpen(!sidebarOpen);
 
   const sendMessage = async () => {
     if (!input.trim()) return;
-    
+    const newMessageIndex = messages.length;
+    setProcessingIndex(newMessageIndex + 1);
+    setProcessing(true);
+
     setMessages([...messages, { role: "user", content: input }]);
     setInput("");
 
-    // Send message to Xavia if a website is active
-    if (activeWebsite && chatId) {
+    if (activeWebsite && activeWebsite.id) {
       try {
-        const response = await TalkToXavia(chatId, input);
+        const response = await TalkToXavia(
+          activeWebsite.id,
+          input
+        );
         setMessages((prevMessages) => [
           ...prevMessages,
           {
             role: "bot",
-            content: response.data || `Response from ${activeWebsite}`,
+            content:
+              response.message || `Response from ${activeWebsite?.error}`,
           },
         ]);
       } catch (error) {
+        setMsg("Error responding to your message");
+        setAlertType("error");
         console.error("Error sending message:", error);
+      } finally {
+        setProcessing(false);
+        setProcessingIndex(null); // Reset after processing
       }
     }
   };
@@ -52,13 +66,12 @@ const ChatApp: React.FC = () => {
     setLoading(true);
     try {
       const response = await CreateXavia(websiteInput);
-      console.log({ response });
-      
+
       const updated = Array.from(new Set([...savedWebsites, websiteInput]));
       setSavedWebsites(updated);
-      setActiveWebsite(websiteInput);
+      setActiveWebsite(response);
       setWebsiteInput("");
-      setChatId(response.chatId); // Set chat ID after creating Xavia
+      setChatId(response.id); // Set chat ID after creating Xavia
       setMsg("Website saved successfully.");
       setAlertType("success");
     } catch (error) {
@@ -90,36 +103,14 @@ const ChatApp: React.FC = () => {
   return (
     <div className="min-h-screen flex bg-[#1e1e20] text-white font-sans">
       {/* Sidebar */}
-      <aside
-        className={`transition-all duration-300 ease-in-out ${
-          sidebarOpen ? "w-[260px]" : "w-0"
-        } bg-[#121212] p-4 overflow-hidden border-r border-gray-700`}
-      >
-        <div className="flex justify-between items-center mb-4">
-          <h2 className="text-lg font-bold">XAVIA</h2>
-          <X
-            className="cursor-pointer text-gray-400 hover:text-white"
-            onClick={toggleSidebar}
-          />
-        </div>
 
-        <div className="mb-3 text-sm text-gray-300">Saved Websites</div>
-        <div className="flex flex-col gap-2 text-sm">
-          {savedWebsites.map((site, i) => (
-            <button
-              key={i}
-              onClick={() => setActiveWebsite(site)}
-              className={`text-left px-3 py-2 rounded ${
-                site === activeWebsite
-                  ? "bg-[#1f6feb] text-white"
-                  : "hover:bg-gray-800 text-gray-300"
-              }`}
-            >
-              {site}
-            </button>
-          ))}
-        </div>
-      </aside>
+      <SideBar
+        sidebarOpen={sidebarOpen}
+        toggleSidebar={toggleSidebar}
+        savedWebsites={savedWebsites}
+        activeWebsite={activeWebsite}
+        setActiveWebsite={setActiveWebsite}
+      />
 
       {/* Main Chat UI */}
       <main className="flex-1 flex flex-col items-center justify-center p-6">
@@ -152,7 +143,8 @@ const ChatApp: React.FC = () => {
           </div>
           {activeWebsite && (
             <div className="text-sm text-gray-400 mt-2">
-              Working on: <span className="text-blue-400">{activeWebsite}</span>
+              Working on:{" "}
+              <span className="text-blue-400">{activeWebsite?.name}</span>
             </div>
           )}
         </div>
@@ -176,7 +168,9 @@ const ChatApp: React.FC = () => {
                     msg.role === "user" ? "bg-[#1f6feb]" : "bg-[#3a3a40]"
                   }`}
                 >
-                  {msg.content}
+                  {msg.role === "bot" && index === processingIndex && processing
+                    ? "Responding..."
+                    : msg.content}
                 </div>
               </div>
             ))}
