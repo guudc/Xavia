@@ -1,13 +1,11 @@
-const formateDecimal = (value: number) => {
-  if (!value) return "0";
-  const balanceStr = value.toString();
-  const decimalIndex = balanceStr.indexOf(".");
-  if (decimalIndex === -1) return balanceStr;
-  const decimalPlaces = balanceStr.length - decimalIndex - 1;
-  if (decimalPlaces >= 2) return String(value.toFixed(2));
-  if (decimalPlaces >= 4) return String(value.toFixed(4));
-  if (decimalPlaces >= 6) return String(value.toFixed(6));
-  return String(value.toFixed(8));
-};
+function stripHTML(html?: string): string | undefined {
+  return html
+    ? html
+        .replace(/<html[^>]*>/gi, "") // Remove <html> and any of its attributes
+        .replace(/<\/html>/gi, "")    // Remove closing </html> tag
+        .replace(/<[^>]*>/g, "")      // Remove any other HTML tags
+        .trim()                       // Trim any extra spaces at the start/end
+    : html;
+}
 
-export { formateDecimal };
+export { stripHTML };

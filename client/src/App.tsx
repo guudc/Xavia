@@ -1,15 +1,16 @@
 import React, { useState, useEffect } from "react";
 import { Input } from "./components/ui/input";
 import { Button } from "./components/ui/button";
-import { Search, Mic, Waves, Menu, X } from "lucide-react";
+import { Menu } from "lucide-react";
 import { CreateXavia, TalkToXavia, GetChatHistory } from "./function";
 import Alert from "./components/ui/alert";
 import SideBar from "./components/SideBar";
+import { stripHTML } from "./utils";
 
 const ChatApp: React.FC = () => {
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [websiteInput, setWebsiteInput] = useState("");
-  const [savedWebsites, setSavedWebsites] = useState<string[]>([]);
+  const [savedWebsites, setSavedWebsites] = useState<any[]>([]);
   const [activeWebsite, setActiveWebsite] = useState<any>({});
   const [input, setInput] = useState("");
   const [messages, setMessages] = useState<any[]>([]);
@@ -20,41 +21,31 @@ const ChatApp: React.FC = () => {
   const [chatId, setChatId] = useState<string | null>(null);
   const [processingIndex, setProcessingIndex] = useState<number | null>(null);
 
-  const toggleSidebar = () => setSidebarOpen(!sidebarOpen);
-
-  const sendMessage = async () => {
-    if (!input.trim()) return;
-    const newMessageIndex = messages.length;
-    setProcessingIndex(newMessageIndex + 1);
-    setProcessing(true);
-
-    setMessages([...messages, { role: "user", content: input }]);
-    setInput("");
-
-    if (activeWebsite && activeWebsite.id) {
-      try {
-        const response = await TalkToXavia(
-          activeWebsite.id,
-          input
-        );
-        setMessages((prevMessages) => [
-          ...prevMessages,
-          {
-            role: "bot",
-            content:
-              response.message || `Response from ${activeWebsite?.error}`,
-          },
-        ]);
-      } catch (error) {
-        setMsg("Error responding to your message");
-        setAlertType("error");
-        console.error("Error sending message:", error);
-      } finally {
-        setProcessing(false);
-        setProcessingIndex(null); // Reset after processing
+  // Load saved websites on mount and select the first one by default
+  useEffect(() => {
+    const stored = localStorage.getItem("savedWebsites");
+    if (stored) {
+      const parsed = JSON.parse(stored);
+      setSavedWebsites(parsed);
+      if (parsed.length > 0) {
+        setActiveWebsite(parsed[0]);
+        setChatId(parsed[0].id);
       }
     }
-  };
+  }, []);
+
+  // Load chat history when chatId changes
+  useEffect(() => {
+    if (!chatId) return;
+
+    const fetchChatHistory = async () => {
+      await loadChatHistory();
+    };
+
+    fetchChatHistory();
+  }, [chatId]);
+
+  const toggleSidebar = () => setSidebarOpen(!sidebarOpen);
 
   const saveWebsite = async () => {
     if (!websiteInput.trim()) {
@@ -66,16 +57,18 @@ const ChatApp: React.FC = () => {
     setLoading(true);
     try {
       const response = await CreateXavia(websiteInput);
+      const updated = Array.from(new Set([...savedWebsites, response]));
 
-      const updated = Array.from(new Set([...savedWebsites, websiteInput]));
       setSavedWebsites(updated);
+      localStorage.setItem("savedWebsites", JSON.stringify(updated));
+
       setActiveWebsite(response);
       setWebsiteInput("");
-      setChatId(response.id); // Set chat ID after creating Xavia
+      setChatId(response.id);
       setMsg("Website saved successfully.");
       setAlertType("success");
     } catch (error) {
-      console.log("Error saving website: ", error);
+      console.error("Error saving website:", error);
       setMsg("Something went wrong while saving this website.");
       setAlertType("error");
     } finally {
@@ -84,37 +77,108 @@ const ChatApp: React.FC = () => {
   };
 
   const loadChatHistory = async () => {
-    if (chatId) {
-      try {
-        const history = await GetChatHistory(chatId);
-        setMessages(history.data || []);
-      } catch (error) {
-        console.error("Error fetching chat history:", error);
-      }
+    try {
+      if (!chatId) return;
+      const response = await GetChatHistory(chatId);
+
+      // Strip HTML from all messages before setting state
+      const cleanedMessages =
+        response?.history.map((msg: any) => ({
+          ...msg,
+          message: stripHTML(msg.message), // Clean each message
+        })) || [];
+      setMessages(cleanedMessages);
+    } catch (error) {
+      console.error("Error fetching chat history:", error);
     }
   };
 
-  useEffect(() => {
-    if (chatId) {
-      loadChatHistory();
+  const sendMessage = async () => {
+    if (!input.trim()) return;
+
+    const currentIndex = messages.length;
+    const userMessage: any = stripHTML(input); // Strip HTML here
+
+    setInput("");
+
+    // Add user's message and a placeholder for the model
+    const tempMessages = [
+      ...messages,
+      { role: "user", message: userMessage },
+      { role: "model", message: "Responding..." },
+    ];
+    setMessages(tempMessages);
+    setProcessing(true);
+    setProcessingIndex(currentIndex + 1);
+
+    try {
+      if (activeWebsite?.id) {
+        const response = await TalkToXavia(activeWebsite.id, userMessage);
+
+        // Strip all HTML/code tags from the response message
+        const rawText = response?.message || "";
+        const plainText = stripHTML(rawText); // Strip HTML here
+
+        const updatedMessages = [...tempMessages];
+        updatedMessages[currentIndex + 1] = {
+          role: "model",
+          message:
+            plainText ||
+            `No message returned from ${activeWebsite?.name || "model"}`,
+        };
+
+        setMessages(updatedMessages);
+      } else {
+        setMsg("No active website selected.");
+        setAlertType("error");
+      }
+    } catch (error) {
+      console.error("Error sending message:", error);
+      setMsg("Error responding to your message");
+      setAlertType("error");
+    } finally {
+      setProcessing(false);
+      setProcessingIndex(null);
     }
-  }, [chatId]);
+  };
+
+  const clearSingleChat = (id: string) => {
+    const updatedWebsites = savedWebsites.filter((w: any) => w.id !== id);
+    setSavedWebsites(updatedWebsites);
+    localStorage.setItem("savedWebsites", JSON.stringify(updatedWebsites));
+    if (activeWebsite?.id === id) {
+      setActiveWebsite(null);
+      setMessages([]);
+      setChatId(null);
+    }
+  };
+
+  const clearAllChats = () => {
+    setSavedWebsites([]);
+    localStorage.removeItem("savedWebsites");
+    setActiveWebsite(null);
+    setMessages([]);
+    setChatId(null);
+  };
 
   return (
     <div className="min-h-screen flex bg-[#1e1e20] text-white font-sans">
       {/* Sidebar */}
-
       <SideBar
         sidebarOpen={sidebarOpen}
         toggleSidebar={toggleSidebar}
         savedWebsites={savedWebsites}
         activeWebsite={activeWebsite}
-        setActiveWebsite={setActiveWebsite}
+        setActiveWebsite={(site) => {
+          setActiveWebsite(site);
+          setChatId(site.id);
+        }}
+        clearSingleChat={clearSingleChat}
+        clearAllChats={clearAllChats}
       />
 
       {/* Main Chat UI */}
       <main className="flex-1 flex flex-col items-center justify-center p-6">
-        {/* Toggle Menu Button */}
         {!sidebarOpen && (
           <Menu
             className="absolute top-4 left-4 text-gray-300 cursor-pointer"
@@ -132,7 +196,6 @@ const ChatApp: React.FC = () => {
               onChange={(e) => setWebsiteInput(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && saveWebsite()}
             />
-
             <Button
               onClick={saveWebsite}
               disabled={loading}
@@ -141,7 +204,7 @@ const ChatApp: React.FC = () => {
               {loading ? "Saving..." : "Save"}
             </Button>
           </div>
-          {activeWebsite && (
+          {activeWebsite?.name && (
             <div className="text-sm text-gray-400 mt-2">
               Working on:{" "}
               <span className="text-blue-400">{activeWebsite?.name}</span>
@@ -168,9 +231,12 @@ const ChatApp: React.FC = () => {
                     msg.role === "user" ? "bg-[#1f6feb]" : "bg-[#3a3a40]"
                   }`}
                 >
-                  {msg.role === "bot" && index === processingIndex && processing
+                  {msg.role === "model" &&
+                  index === processingIndex &&
+                  processing
                     ? "Responding..."
-                    : msg.content}
+                    : stripHTML(msg.message)}{" "}
+                  {/* Apply stripHTML here */}
                 </div>
               </div>
             ))}
@@ -185,14 +251,12 @@ const ChatApp: React.FC = () => {
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && sendMessage()}
             />
-            <div className="flex items-center gap-2">
-              <Button
-                onClick={sendMessage}
-                className="bg-blue-600 text-white px-4 py-1 rounded-full"
-              >
-                →
-              </Button>
-            </div>
+            <Button
+              onClick={sendMessage}
+              className="bg-blue-600 text-white px-4 py-1 rounded-full"
+            >
+              →
+            </Button>
           </div>
         </div>
       </main>
