@@ -63,7 +63,7 @@ export const scrapeWebsite = async (startUrl: string): Promise<Record<string, Sc
  const visited = new Set<string>();
  const siteData: Record<string, ScrapedData> = {};
  const queue: string[] = [startUrl];
- 
+ startUrl = ensureHttps(startUrl)
  while (queue.length > 0 && visited.size < 15 && JSON.stringify(siteData).length < MAX_LENGTH) {
    const url = queue.shift();
    if (!url || visited.has(url)) continue;
@@ -161,3 +161,10 @@ export const scrapeWebsite = async (startUrl: string): Promise<Record<string, Sc
  }
  return siteData;
 };
+
+export function ensureHttps(url:string) {
+  if (!/^https?:\/\//i.test(url)) {
+    return `https://${url}`;
+  }
+  return url;
+}

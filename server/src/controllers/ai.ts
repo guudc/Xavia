@@ -6,7 +6,7 @@ import { Request, Response } from "express";
 import { Chat, ChatHistory } from "../models/chat";
 import { v4 as uuidv4 } from "uuid";
 import { URL } from "url";
-import { scrapeWebsite } from "../tools/web";
+import { ensureHttps, scrapeWebsite } from "../tools/web";
 import ai from '../tools/ai'
 
 /**
@@ -18,7 +18,8 @@ import ai from '../tools/ai'
  */
 export const createSiteAI = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { url } = req.body;
+    let { url } = req.body;
+    url = ensureHttps(url)
     // Validate the URL
     if (!url) {
       res.status(400).json({ error: "URL is required" });
