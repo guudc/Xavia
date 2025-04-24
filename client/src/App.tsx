@@ -5,6 +5,7 @@ import { Menu } from "lucide-react";
 import { CreateXavia, TalkToXavia, GetChatHistory } from "./function";
 import Alert from "./components/ui/alert";
 import SideBar from "./components/SideBar";
+import DOMPurify from 'dompurify';
 import { stripHTML } from "./utils";
 
 const ChatApp: React.FC = () => {
@@ -235,7 +236,8 @@ const ChatApp: React.FC = () => {
                   index === processingIndex &&
                   processing
                     ? "Responding..."
-                    : stripHTML(msg.message)}{" "}
+                    :<span dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(msg.message) }} />
+                  }
                   {/* Apply stripHTML here */}
                 </div>
               </div>
